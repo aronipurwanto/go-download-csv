@@ -1,0 +1,17 @@
+# vcs
+.git
+.gitignore
+
+# editor/os
+.vscode
+.idea
+.DS_Store
+
+# build artifacts
+bin
+dist
+out
+*.log
+
+# modules cache (biar pakai layer dari builder)
+node_modules

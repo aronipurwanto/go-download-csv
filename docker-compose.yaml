@@ -1,0 +1,71 @@
+version: "3.9"
+
+services:
+  db:
+    image: postgres:16
+    container_name: tx-postgres
+    environment:
+      POSTGRES_DB: ${DB_NAME:-transactiondb}
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+    ports:
+      - "${DB_PORT_PUBLIC:-5432}:5432"   # opsional: buka ke host
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        - APP_NAME=${APP_NAME:-transaction-api}
+    container_name: tx-app
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      # server
+      APP_NAME: ${APP_NAME:-transaction-api}
+      SERVER_HOST: 0.0.0.0
+      SERVER_PORT: 8080
+
+      # db (dibaca oleh internal/config)
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_USER: ${DB_USER:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD:-postgres}
+      DB_NAME: ${DB_NAME:-transactiondb}
+      DB_SSLMODE: disable
+      DB_TIMEZONE: Asia/Jakarta
+
+      # optional pool
+      DB_MAX_OPEN_CONNS: 20
+      DB_MAX_IDLE_CONNS: 10
+      DB_CONN_MAX_LIFETIME: 1h
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+
+  # Optional: pgAdmin UI
+  pgadmin:
+    image: dpage/pgadmin4:8.12
+    container_name: tx-pgadmin
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@local}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-admin}
+    ports:
+      - "5050:80"
+    volumes:
+      - pgadmin-data:/var/lib/pgadmin
+
+volumes:
+  db-data:
+  pgadmin-data:
